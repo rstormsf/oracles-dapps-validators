@@ -21,40 +21,6 @@ function call(web3, acc, contractAddr, data, cb) {
     cb(data);
   });
 }
-
-/*function getContractStringDataFromAddressKey(web3, func, inputVal, i, contractAddr, cb) {
-  const funcParamsNumber = 1;
-  const standardLength = 32;
-
-  let parameterLocation = standardLength * funcParamsNumber;
-
-  let funcEncode = SHA3Encrypt(web3, func);
-  let funcEncodePart = funcEncode.substring(0,10);
-  
-  let data = funcEncodePart
-  + toUnifiedLengthLeft(inputVal);
-
-  call(web3, null, contractAddr, data, function(respHex) {
-    cb(i, hex2a(respHex));
-  });
-}
-
-function getContractIntDataFromAddressKey(web3, func, inputVal, i, contractAddr, cb) {
-  const funcParamsNumber = 1;
-  const standardLength = 32;
-
-  let parameterLocation = standardLength * funcParamsNumber;
-
-  let funcEncode = SHA3Encrypt(web3, func);
-  let funcEncodePart = funcEncode.substring(0,10);
-  
-  let data = funcEncodePart
-  + toUnifiedLengthLeft(inputVal);
-
-  call(web3, null, contractAddr, data, function(respHex) {
-    cb(i, parseInt(respHex, 16));
-  });
-}*/
 //check current network page is connected to. Alerts, if not Oracles network
 async function checkNetworkVersion(web3, cb) {
   var msgNotOracles = "You aren't connected to Oracles network. Please, switch on Oracles plugin and choose Oracles network. Check Oracles network <a href='https://github.com/oraclesorg/oracles-wiki' target='blank'>wiki</a> for more info.";
@@ -89,99 +55,6 @@ async function checkNetworkVersion(web3, cb) {
       } break;
     }
   })
-}
-function hex2a(hexx) {
-    var hex = hexx.toString();//force conversion
-    var str = '';
-    for (var i = 0; i < hex.length; i += 2) {
-      var code = parseInt(hex.substr(i, 2), 16);
-      if (code != 0 && !isNaN(code)) {
-        str += String.fromCharCode(code);
-      }
-    }
-    str = str.substr(2);
-    return str;
-}
-
-function toUnifiedLengthLeft(strIn) {//for numbers
-  var strOut = "";
-  for (var i = 0; i < 64 - strIn.length; i++) {
-    strOut += "0"
-  }
-  strOut += strIn;
-  return strOut;
-}
-
-function countRows(strIn) {
-  var rowsCount = 0;
-  if (strIn.length%64 > 0)
-    rowsCount = parseInt(strIn.length/64) + 1;
-  else
-    rowsCount = parseInt(strIn.length/64);
-  return rowsCount;
-}
-
-function toUnifiedLengthRight(strIn) {//for strings
-  var strOut = "";
-  strOut += strIn;
-  var rowsCount = countRows(strIn);
-  for (var i = 0; i < rowsCount*64 - strIn.length; i++) {
-    strOut += "0"
-  }
-  return strOut;
-}
-
-String.prototype.hexEncode = function(){
-    var hex, i;
-
-    var result = "";
-    for (i=0; i<this.length; i++) {
-        hex = this.charCodeAt(i).toString(16);
-        result += hex.slice(-4);
-    }
-
-    return result
-}
-
-function toUTF8Array(str) {
-    var utf8 = [];
-    for (var i=0; i < str.length; i++) {
-        var charcode = str.charCodeAt(i);
-        if (charcode < 0x80) utf8.push(charcode);
-        else if (charcode < 0x800) {
-            utf8.push(0xc0 | (charcode >> 6), 
-                      0x80 | (charcode & 0x3f));
-        }
-        else if (charcode < 0xd800 || charcode >= 0xe000) {
-            utf8.push(0xe0 | (charcode >> 12), 
-                      0x80 | ((charcode>>6) & 0x3f), 
-                      0x80 | (charcode & 0x3f));
-        }
-        // surrogate pair
-        else {
-            i++;
-            // UTF-16 encodes 0x10000-0x10FFFF by
-            // subtracting 0x10000 and splitting the
-            // 20 bits of 0x0-0xFFFFF into two halves
-            charcode = 0x10000 + (((charcode & 0x3ff)<<10)
-                      | (str.charCodeAt(i) & 0x3ff));
-            utf8.push(0xf0 | (charcode >>18), 
-                      0x80 | ((charcode>>12) & 0x3f), 
-                      0x80 | ((charcode>>6) & 0x3f), 
-                      0x80 | (charcode & 0x3f));
-        }
-    }
-    return utf8;
-}
-
-function toHexString(byteArray) {
-  return byteArray.map(function(byte) {
-    return ('0' + (byte & 0xFF).toString(16)).slice(-2);
-  }).join('')
-}
-
-function bytesCount(s) {
-    return encodeURI(s).split(/%..|./).length - 1;
 }
 function formatDate(date, format, utc) {
     //var MMMM = ["\x00", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -305,28 +178,15 @@ async function getConfig(cb) {
 	if (cb) cb(configJSON)
 	return configJSON;
 }
-function getValidators(web3, func, contractAddress, abi, disabled, cb) {
-	let funcEncode = SHA3Encrypt(web3, func);
-	var funcEncodePart = funcEncode.substring(0,10);
+function getValidators(web3, contractAddress, abi, disabled, cb) {
+	let oraclesContract = attachToContract(web3, abi, contractAddress)
+	console.log("attach to oracles contract");
+    if (!oraclesContract) {
+      return cb();
+    }
 
-	var data = funcEncodePart;
-	
-	call(web3, null, contractAddress, data, function(validatorsResp) {
-		validatorsResp = validatorsResp.substring(2, validatorsResp.length);
-		var validatorsArray = [];
-		var item = "";
-		for (var i = 0; i < validatorsResp.length; i++) {
-			item += validatorsResp[i];
-			if ((i + 1) % 64 == 0) {
-				item = item.substr(item.length - 40, 40);
-				validatorsArray.push(item);
-				item = "";
-			}
-		}
-		validatorsArray.shift();
-		validatorsArray.shift(); //number of elements
-
-		if (validatorsArray.length == 0) {
+    oraclesContract.methods.getValidators().call(function(err, validatorsArray) {
+    	if (validatorsArray.length == 0) {
 			return cb(validatorsArray);
 		}
 
@@ -334,53 +194,53 @@ function getValidators(web3, func, contractAddress, abi, disabled, cb) {
 		var iasync = 0;
 		var validatorDataCount = 6;
 		if (disabled)
-			validatorDataCount = 7;
+			validatorDataCount++;
 		for (var i = 0; i < validatorsArray.length; i++) {
 			getValidatorFullName(web3, validatorsArray[i], i, contractAddress, abi, function(_i, resp) {
 				iasync++;
 				validatorsArrayOut = getPropertyCallback("fullName", resp, _i, iasync, validatorsArray, validatorDataCount, validatorsArrayOut, cb);
-				if (iasync == validatorsArray.length * validatorDataCount) {console.log(validatorsArrayOut); cb(validatorsArrayOut)};
+				if (iasync == validatorsArray.length * validatorDataCount) {cb(validatorsArrayOut)};
 			});
 
 			getValidatorStreetName(web3, validatorsArray[i], i, contractAddress, abi, function(_i, resp) {
 				iasync++;
 				validatorsArrayOut = getPropertyCallback("streetName", resp, _i, iasync, validatorsArray, validatorDataCount, validatorsArrayOut, cb);
-				if (iasync == validatorsArray.length * validatorDataCount) {console.log(validatorsArrayOut); cb(validatorsArrayOut)};
+				if (iasync == validatorsArray.length * validatorDataCount) {cb(validatorsArrayOut)};
 			});
 
 			getValidatorState(web3, validatorsArray[i], i, contractAddress, abi, function(_i, resp) {
 				iasync++;
 				validatorsArrayOut = getPropertyCallback("state", resp, _i, iasync, validatorsArray, validatorDataCount, validatorsArrayOut, cb);
-				if (iasync == validatorsArray.length * validatorDataCount) {console.log(validatorsArrayOut); cb(validatorsArrayOut)};
+				if (iasync == validatorsArray.length * validatorDataCount) {cb(validatorsArrayOut)};
 			});
 
 			getValidatorLicenseExpiredAt(web3, validatorsArray[i], i, contractAddress, abi, function(_i, resp) {
 				iasync++;
 				validatorsArrayOut = getPropertyCallback("licenseExpiredAt", resp, _i, iasync, validatorsArray, validatorDataCount, validatorsArrayOut, cb);
-				if (iasync == validatorsArray.length * validatorDataCount) {console.log(validatorsArrayOut); cb(validatorsArrayOut)};
+				if (iasync == validatorsArray.length * validatorDataCount) {cb(validatorsArrayOut)};
 			});
 
 			getValidatorZip(web3, validatorsArray[i], i, contractAddress, abi, function(_i, resp) {
 				iasync++;
 				validatorsArrayOut = getPropertyCallback("zip", resp, _i, iasync, validatorsArray, validatorDataCount, validatorsArrayOut, cb);
-				if (iasync == validatorsArray.length * validatorDataCount) {console.log(validatorsArrayOut); cb(validatorsArrayOut)};
+				if (iasync == validatorsArray.length * validatorDataCount) {cb(validatorsArrayOut)};
 			});
 
 			getValidatorLicenseID(web3, validatorsArray[i], i, contractAddress, abi, function(_i, resp) {
 				iasync++;
 				validatorsArrayOut = getPropertyCallback("licenseID", resp, _i, iasync, validatorsArray, validatorDataCount, validatorsArrayOut, cb);
-				if (iasync == validatorsArray.length * validatorDataCount) {console.log(validatorsArrayOut); cb(validatorsArrayOut)};
+				if (iasync == validatorsArray.length * validatorDataCount) {cb(validatorsArrayOut)};
 			});
 
 			if (disabled) {
 				getValidatorDisablingDate(web3, validatorsArray[i], i, contractAddress, abi, function(_i, resp) {
 					iasync++;
 					validatorsArrayOut = getPropertyCallback("disablingDate", resp, _i, iasync, validatorsArray, validatorDataCount, validatorsArrayOut, cb);
-					if (iasync == validatorsArray.length * validatorDataCount) {console.log(validatorsArrayOut); cb(validatorsArrayOut)};
+					if (iasync == validatorsArray.length * validatorDataCount) {cb(validatorsArrayOut)};
 				});
 			}
 		}
-	});
+    })
 }
 
 function getPropertyCallback(prop, resp, _i, iasync, validatorsArray, validatorDataCount, validatorsArrayOut, cb) {
@@ -402,8 +262,8 @@ function callContractMethod(web3, addr, i, contractAddr, abi, cb, method) {
       return cb();
     }
 
-    oraclesContract.methods[method](addr).call(function(err, fullname) {
-    	cb(i, fullname);
+    oraclesContract.methods[method](addr).call(function(err, res) {
+    	cb(i, res);
     })
 }
 
@@ -539,7 +399,7 @@ function startDapp(web3, isOraclesNetwork) {
 async function startDappInner(web3) {
 	var validators;
   	let config = await getConfig()
-  	getValidators(web3, "getValidators()", config.contractAddress, config.abi, false, function(_validatorsArray) {
+  	getValidators(web3, config.contractAddress, config.abi, false, function(_validatorsArray) {
 	  	$(".loading-container").hide();
 		validators = _validatorsArray;
 		for(var i = 0; i < _validatorsArray.length; i++) {

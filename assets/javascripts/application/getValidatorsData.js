@@ -5,8 +5,8 @@ function callContractMethod(web3, addr, i, contractAddr, abi, cb, method) {
       return cb();
     }
 
-    oraclesContract.methods[method](addr).call(function(err, fullname) {
-    	cb(i, fullname);
+    oraclesContract.methods[method](addr).call(function(err, res) {
+    	cb(i, res);
     })
 }
 
